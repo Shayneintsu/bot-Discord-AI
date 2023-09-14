@@ -7,35 +7,60 @@ from EdgeGPT.EdgeGPT import Chatbot, ConversationStyle
 from tokens import D_TOKEN
 
 async def main():
-    global bot,client
-    bot = bot()
+    global ai,bot
+    ai = AI()
     try:
         src = Bard(token=B_TOKEN,session=session)
-        bot = Bbot(src)
+        ai = Bai(src)
     except:
-        src = await Chatbot.create()
-        bot = Ebot(src)
+        tmp = True
+        while tmp:
+            try:
+                src = await Chatbot.create()
+                tmp = False
+            except:
+                tmp = True
+        ai = Eai(src)
     
 
 
-@client.event
+@bot.event
 async def on_ready():
-    rsp = await bot.ask("hello world")
+
+    synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ADMIN_ID,type=discord.Guild))
+    print(f"Guild Admin {bot.get_guild(GUILD_ADMIN_ID).name}")
+    synced = await bot.tree.sync()
+    print(f"Sync {len(synced)} slash command:")
+    for cmd in synced:
+        print(cmd.name)
+
+    rsp = await ai.ask("hello world")
     print(rsp)
 
-@client.event
+@bot.event
 async def on_message(msg:discord.Message):
     if not msg.author.bot:
-        if msg.author.display_name == AUTHOR and msg.content == "bye":
-            await bot.close()
-            await client.close()
-            exit()
+        #ctx:discord.ext.commands.Context = await bot.get_context(msg)
+        #await ctx.defer()
+        await msg.channel.typing()
         print('msg from '+msg.author.display_name+' say '+msg.content)
-        rsp = await bot.ask(msg.content)
+        rsp = await ai.ask(msg.content)
         print('bot say '+rsp)
         print()
         await msg.channel.send(rsp)
 
+@bot.tree.command(name="ping",description="Bot is it okay?")
+async def ping(interact:discord.Interaction):
+    await interact.response.send_message("Pong",ephemeral=True,delete_after=10)
+
+@bot.tree.command(name="kill",description="Byeeeee",guild=discord.Object(id=GUILD_ADMIN_ID,type=discord.Guild))
+async def ping(interact:discord.Interaction):
+    await interact.response.defer()
+    await interact.followup.send("Byeeeee",ephemeral=True)
+    await ai.close()
+    await bot.close()
+    exit()
+
 
 asyncio.run(main())
-client.run(token=D_TOKEN)
+bot.run(token=D_TOKEN)
